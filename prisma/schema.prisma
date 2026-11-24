@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  DRIVER
+  KARYAWAN
+  OWNER
+}
+
+enum VehicleType {
+  MOTOR
+  VAN
+  MOBIL_BOX
+}
+
+enum OrderStatus {
+  PENDING       // Menunggu driver
+  ACCEPTED      // Driver menuju titik jemput
+  IN_DELIVERY   // Barang diambil, sedang antar multi-titik
+  COMPLETED     // Semua titik selesai
+  CANCELLED
+}
+
+enum StopStatus {
+  WAITING
+  ARRIVED
+  DELIVERED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  driverProfile  DriverProfile?
+  ordersAsUser   Order[]        @relation("CustomerOrders")
+  ordersAsDriver Order[]        @relation("DriverOrders")
+}
+
+model DriverProfile {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType VehicleType
+  plateNumber String      @unique
+  maxWeightKg Float
+  maxVolumeM3 Float       @default(0.06)
+  isOnline    Boolean     @default(false)
+  isVerified  Boolean     @default(false)
+  currentLat  Float?
+  currentLng  Float?
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderCode       String      @unique
+  customerId      String
+  customer        User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  driverId        String?
+  driver          User?       @relation("DriverOrders", fields: [driverId], references: [id])
+
+  vehicleType     VehicleType
+  pickupAddress   String
+  pickupLat       Float
+  pickupLng       Float
+  totalWeightKg   Float
+  totalVolumeM3   Float       @default(0)
+  totalDistanceKm Float
+  totalPrice      Int
+  platformFee     Int
+  driverEarning   Int
+  status          OrderStatus @default(PENDING)
+  rating          Int?
+  review          String?
+  issueNote       String?
+  createdAt       DateTime    @default(now())
+
+  stops           OrderStop[]
+}
+
+model OrderStop {
+  id             String     @id @default(cuid())
+  orderId        String
+  order          Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  sequenceOrder  Int
+  recipientName  String
+  recipientPhone String
+  address        String
+  lat            Float
+  lng            Float
+  itemDesc       String
+  weightKg       Float
+  volumeM3       Float      @default(0.01)
+  status         StopStatus @default(WAITING)
+  proofPhotoUrl  String?
+  completedAt    DateTime?
+}
+
+model PricingConfig {
+  id             String      @id @default(cuid())
+  vehicleType    VehicleType @unique
+  baseFare       Int
+  perKmRate      Int
+  multiDropFee   Int
+  platformCutPct Float
+  maxWeightKg    Float       @default(20)
+  maxVolumeM3    Float       @default(0.06)
+  updatedAt      DateTime    @updatedAt
+}

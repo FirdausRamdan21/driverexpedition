@@ -42,9 +42,9 @@ export function TransitDashboard() {
   const [lastSync, setLastSync] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRoutes = useCallback(async (silent = false) => {
+  const fetchRoutes = useCallback(async (showSpinner = false) => {
     try {
-      if (!silent) setLoading(true);
+      if (showSpinner) setLoading(true);
       const res = await fetch("/api/routes", { cache: "no-store" });
       if (!res.ok) throw new Error("Gagal mengambil data rute");
       const data = (await res.json()) as { routes: RouteDTO[] };
@@ -69,11 +69,16 @@ export function TransitDashboard() {
 
   // Initial load + polling setiap 3 detik untuk real-time tracking lokal
   useEffect(() => {
-    fetchRoutes(false);
+    const initialTimer = setTimeout(() => {
+      void fetchRoutes(false);
+    }, 0);
     const interval = setInterval(() => {
-      fetchRoutes(true);
+      void fetchRoutes(false);
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [fetchRoutes]);
 
   // Ambil garis rute jalan raya (OSRM) saat koridor berganti
@@ -138,7 +143,7 @@ export function TransitDashboard() {
           </div>
           <button
             type="button"
-            onClick={() => fetchRoutes(false)}
+            onClick={() => fetchRoutes(true)}
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw className="h-3.5 w-3.5" />
